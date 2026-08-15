@@ -960,7 +960,53 @@ function avoidMobs(bot) {
 }
 
 // Combat module
+function combatModule(bot, mcData) {
+    // Attack nearby mobs
+    addInterval(() => {
+        if (!bot || !botState.connected) return;
 
+        try {
+            if (config.combat['attack-mobs']) {
+                const mobs = Object.values(bot.entities).filter(entity =>
+                    entity.type === 'mob' &&
+                    entity.position &&
+                    bot.entity.position.distanceTo(entity.position) < 4
+                );
+
+                if (mobs.length > 0) {
+                    bot.attack(mobs[0]);
+                }
+            }
+        } catch (e) {
+            console.log('[Combat] Error:', e.message);
+        }
+    }, 1500);
+
+    // Auto eat
+    bot.on('health', () => {
+        if (!config.combat['auto-eat']) return;
+
+        try {
+            if (bot.food < 14) {
+                const food = bot.inventory.items().find(item => {
+                    const itemData = mcData.itemsByName[item.name];
+
+                    return itemData && itemData.food;
+                });
+
+                if (food) {
+                    bot.equip(food, 'hand')
+                        .then(() => bot.consume())
+                        .catch(e =>
+                            console.log('[AutoEat] Error:', e.message)
+                        );
+                }
+            }
+        } catch (e) {
+            console.log('[AutoEat] Error:', e.message);
+        }
+    });
+}
 
 // Bed module (FIXED - beds are blocks, not entities)
 function bedModule(bot, mcData) {
