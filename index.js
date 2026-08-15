@@ -596,44 +596,117 @@ if (config.utils['chat-messages']?.enabled) {
     console.log(`[AutoChat] Random messages enabled: every ${delay / 1000}s`);
   }
 }
-  // ---------- DEATH + KILLER CHAT ----------
-const deathMessages = [
-  "{killer} mujhe kyu mar rahe ho bhai 😭",
-  "{killer} noobre jaa na apna kaam kar 😂",
-  "{killer} 1v1 karega bot sala? 😈",
-  "Arey {killer} galat bande se panga le liya 💀",
-  "{killer} ye kya kar diya mere saath 😭",
-  "Ruk {killer} respawn hone de 😤",
-  "{killer} aaj meri kismat hi kharab hai 💀",
-  "Bot ko maar ke kya milega {killer}? 😂",
+  // ---------- SMART DEATH CHAT ----------
+
+const playerDeathMessages = [
+  "mujhe kyu maar rahe ho {killer} 😭",
   "{killer} ye unfair tha bhai 😭",
-  "Teri Ma ki Chut {killer}, Sale,",
+  "Teri Ma ki Chut {killer} Sale",
   "Maderchood {killer} ",
+  "Bhaago",
+  "Chala ja Bhoshdri ke",
   "Magar ladle {killer} miaau khp khp khp ",
-  "Next time {killer} ko nahi chhodunga 😈",
-  "{killer} lagta hai aaj Minecraft mere against hai 💀",
-  "Bhai {killer} thoda daya kar leta 😭",
-  "{killer} ye murder tha bhai 😂",
-  "{killer} respawn hone de, phir batata hu 😎",
-  "Mera revenge pending hai {killer} 😈",
-  "{killer} GG... lekin badhiya nahi tha 😭",
-  "Aaj to bot ki watt {killer} ne laga di 💀",
-  "{killer} kya fayda mujhe maar ke, main phir aa jaunga 😂",
-  "Bhai {killer} ye personal ho gaya 😤",
-  "{killer} next round meri hai 😈"
+  "{killer} bot 1v1 karega sala? 😈",
+  "{killer} noobre jaa na apna kaam kar 😂",
+  "{killer} galat bande se panga le liya 💀",
+  "{killer} ye personal ho gaya 😤",
+  "{killer} re Maderchood 😈",
+  "{killer} Agali bar mil tu mujhe teri gaand na mar li na to mera naam bhi Mythpat nahi😂",
+  "{killer} bot ko maar ke kya milega? 💀",
+  "{killer} ye unfair tha harami sala 😭",
+  "{killer} Lund lega Bara wala 😈"
+];
+
+const mobDeathMessages = [
+  "{killer} ne mujhe maar diya 😭",
+  "Abe {killer} mujhe kyu maar raha hai? 😂",
+  "{killer} se haar gaya bhai 💀",
+  "Ye {killer} bahut dangerous hai 😭",
+  "{killer} agli baar nahi bachoge 😈",
+  "Bhai ye {killer} to jaan le raha hai 💀",
+  "{killer} ne Mythpat ki watt laga di 😂",
+  "Mujhe {killer} se bachao koi 😭",
+  "{killer} thoda daya kar leta bhai 😂",
+  "Aaj {killer} ne mujhe nipta diya 💀"
+];
+
+const fallDeathMessages = [
+  "Bhai ye height kuch zyada hi thi 💀",
+  "Mujhe laga neeche zameen hai 😭",
+  "Gravity OP hai bhai 😂",
+  "Itni height se kaun girta hai 💀",
+  "Aaj gravity ne mujhe hara diya 😭",
+  "Ye jump thoda zyada bada ho gaya 😂",
+  "Bhai parachute kahan hai? 😭",
+  "Minecraft physics ne maar diya 💀",
+  "Main ud raha tha, bas landing galat ho gayi 😂",
+  "Height check failed 💀"
+];
+
+const genericDeathMessages = [
+  "Bhai main mar gaya 😭",
+  "Ye kya ho gaya 💀",
+  "Aaj bot ki kismat kharab hai 😂",
+  "RIP bot 😭",
+  "Respawn hone de bhai 😈",
+  "Main wapas aaunga 💀"
 ];
 
 let lastAttacker = null;
 let lastDamageTime = 0;
+let fallDistance = 0;
+let highestY = null;
+let wasFalling = false;
 
-// Detect entities around the bot when it gets hurt
+
+// Track falling distance
+addInterval(() => {
+  if (!bot || !botState.connected || !bot.entity) return;
+
+  try {
+    const y = bot.entity.position.y;
+    const velocityY = bot.entity.velocity.y;
+
+    if (highestY === null) {
+      highestY = y;
+    }
+
+    // Falling
+    if (velocityY < -0.08 && !bot.entity.onGround) {
+      if (!wasFalling) {
+        highestY = y;
+        wasFalling = true;
+      }
+
+      fallDistance = Math.max(0, highestY - y);
+    }
+
+    // Reset after landing
+    if (bot.entity.onGround) {
+      wasFalling = false;
+      highestY = y;
+    }
+
+  } catch (e) {
+    console.log(`[FallDetect] Error: ${e.message}`);
+  }
+}, 100);
+
+
+// Detect damage
 bot.on('entityHurt', (entity) => {
   if (!bot || !bot.entity || entity !== bot.entity) return;
 
   try {
-    const now = Date.now();
+    // Don't immediately assume nearby entity is killer
+    // if the bot has recently fallen.
+    if (fallDistance >= 5) {
+      console.log(
+        `[DeathDetect] Possible fall damage: ${fallDistance.toFixed(1)} blocks`
+      );
+      return;
+    }
 
-    // Find nearby players/mobs
     const attackers = Object.values(bot.entities)
       .filter(e =>
         e !== bot.entity &&
@@ -647,66 +720,132 @@ bot.on('entityHurt', (entity) => {
         entity: e,
         distance: bot.entity.position.distanceTo(e.position)
       }))
-      .filter(e => e.distance <= 6)
+      .filter(e => e.distance <= 4)
       .sort((a, b) => a.distance - b.distance);
 
     if (attackers.length > 0) {
       lastAttacker = attackers[0].entity;
-      lastDamageTime = now;
+      lastDamageTime = Date.now();
 
       console.log(
-        `[Combat] Possible attacker: ${
-          lastAttacker.username || lastAttacker.name || lastAttacker.type
+        `[DeathDetect] Possible attacker: ${
+          lastAttacker.username ||
+          lastAttacker.name ||
+          lastAttacker.type
         }`
       );
     }
+
   } catch (e) {
-    console.log(`[KillerDetect] Error: ${e.message}`);
+    console.log(`[DeathDetect] Error: ${e.message}`);
   }
 });
 
-// Detect death
+
+// Death event
 bot.on('death', () => {
-  if (!bot) return;
 
-  let killer = 'Koi';
+  let message;
+  let deathType = 'generic';
 
-  // Only trust the attacker if the damage happened recently
-  if (
-    lastAttacker &&
-    Date.now() - lastDamageTime <= 10000
-  ) {
-    if (lastAttacker.username) {
-      killer = `${lastAttacker.username}`;
-    } else if (lastAttacker.name) {
-      killer = lastAttacker.name;
-    } else if (lastAttacker.type === 'mob') {
-      killer = lastAttacker.displayName || lastAttacker.name || 'that mob';
-    } else {
-      killer = 'that guy';
-    }
+  // --------------------------------
+  // 1. FALL DEATH
+  // --------------------------------
+  if (fallDistance >= 5) {
+
+    message =
+      fallDeathMessages[
+        Math.floor(Math.random() * fallDeathMessages.length)
+      ];
+
+    deathType = 'fall';
+
   }
 
-  const template =
-    deathMessages[Math.floor(Math.random() * deathMessages.length)];
+  // --------------------------------
+  // 2. PLAYER / MOB DEATH
+  // --------------------------------
+  else if (
+    lastAttacker &&
+    Date.now() - lastDamageTime <= 5000
+  ) {
 
-  const message = template.replaceAll('{killer}', killer);
+    let killerName;
 
-  // Wait a little so the server can process the death/respawn
+    if (lastAttacker.type === 'player') {
+
+      killerName =
+        lastAttacker.username || 'that player';
+
+      const template =
+        playerDeathMessages[
+          Math.floor(Math.random() * playerDeathMessages.length)
+        ];
+
+      message = template.replaceAll('{killer}', killerName);
+      deathType = 'player';
+
+    }
+
+    else if (lastAttacker.type === 'mob') {
+
+      killerName =
+        lastAttacker.displayName ||
+        lastAttacker.name ||
+        'that mob';
+
+      const template =
+        mobDeathMessages[
+          Math.floor(Math.random() * mobDeathMessages.length)
+        ];
+
+      message = template.replaceAll('{killer}', killerName);
+      deathType = 'mob';
+
+    }
+
+  }
+
+  // --------------------------------
+  // 3. UNKNOWN DEATH
+  // --------------------------------
+  if (!message) {
+
+    message =
+      genericDeathMessages[
+        Math.floor(Math.random() * genericDeathMessages.length)
+      ];
+
+    deathType = 'generic';
+  }
+
+
+  console.log(`[DeathChat] Type: ${deathType}`);
+  console.log(`[DeathChat] ${message}`);
+
+
+  // Wait for respawn
   setTimeout(() => {
+
     try {
+
       if (bot) {
         bot.chat(message);
-        console.log(`[DeathChat] ${message}`);
       }
+
     } catch (e) {
       console.log(`[DeathChat] Error: ${e.message}`);
     }
+
   }, 1000);
 
-  // Reset attacker after death
+
+  // Reset
   lastAttacker = null;
   lastDamageTime = 0;
+  fallDistance = 0;
+  highestY = null;
+  wasFalling = false;
 });
 
   // ---------- CUSTOM MODULES ----------
