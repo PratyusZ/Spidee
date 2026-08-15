@@ -851,9 +851,6 @@ bot.on('death', () => {
   // ---------- CUSTOM MODULES ----------
   if (config.modules.avoidMobs) avoidMobs(bot);
   if (config.modules.combat) combatModule(bot, mcData);
-
-  revengeSystem(bot);
-  
   if (config.modules.beds) bedModule(bot, mcData);
   if (config.modules.chat) chatModule(bot);
 
