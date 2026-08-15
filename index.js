@@ -677,7 +677,7 @@ bot.on('death', () => {
     Date.now() - lastDamageTime <= 10000
   ) {
     if (lastAttacker.username) {
-      killer = `@${lastAttacker.username}`;
+      killer = `${lastAttacker.username}`;
     } else if (lastAttacker.name) {
       killer = lastAttacker.name;
     } else if (lastAttacker.type === 'mob') {
