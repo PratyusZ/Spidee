@@ -851,6 +851,9 @@ bot.on('death', () => {
   // ---------- CUSTOM MODULES ----------
   if (config.modules.avoidMobs) avoidMobs(bot);
   if (config.modules.combat) combatModule(bot, mcData);
+
+  revengeSystem(bot);
+  
   if (config.modules.beds) bedModule(bot, mcData);
   if (config.modules.chat) chatModule(bot);
 
@@ -960,42 +963,196 @@ function avoidMobs(bot) {
 }
 
 // Combat module
-function combatModule(bot, mcData) {
-  addInterval(() => {
-    if (!bot || !botState.connected) return;
-    try {
-      if (config.combat['attack-mobs']) {
-        const mobs = Object.values(bot.entities).filter(e =>
-          e.type === 'mob' && e.position &&
-          bot.entity.position.distanceTo(e.position) < 4
-        );
-        if (mobs.length > 0) {
-          bot.attack(mobs[0]);
-        }
-      }
-    } catch (e) {
-      console.log('[Combat] Error:', e.message);
-    }
-  }, 1500);
+// ---------- SMART REVENGE SYSTEM ----------
 
-  bot.on('health', () => {
-    if (!config.combat['auto-eat']) return;
+function revengeSystem(bot) {
+  let revengeTarget = null;
+  let revengeUntil = 0;
+  let revengeInterval = null;
+
+  // Entities jo bot ko legitimately attack kar sakte hain
+  function isValidTarget(entity) {
+    if (!entity || entity === bot.entity) return false;
+
+    return (
+      entity.type === 'player' ||
+      entity.type === 'mob'
+    );
+  }
+
+  function getDistance(entity) {
+    if (!entity?.position || !bot?.entity?.position) return Infinity;
+
+    return bot.entity.position.distanceTo(entity.position);
+  }
+
+  function findBestAttacker() {
+    if (!bot?.entity) return null;
+
+    const entities = Object.values(bot.entities)
+      .filter(isValidTarget)
+      .map(entity => ({
+        entity,
+        distance: getDistance(entity)
+      }))
+      .filter(x => x.distance <= 6)
+      .sort((a, b) => a.distance - b.distance);
+
+    if (entities.length === 0) return null;
+
+    return entities[0].entity;
+  }
+
+  function startRevenge(target) {
+    if (!target || !isValidTarget(target)) return;
+
+    revengeTarget = target;
+    revengeUntil = Date.now() + 8000;
+
+    const name =
+      target.username ||
+      target.displayName ||
+      target.name ||
+      target.type;
+
+    console.log(`[Revenge] Target locked: ${name}`);
+
+    if (revengeInterval) {
+      clearInterval(revengeInterval);
+    }
+
+    // First attack immediately
     try {
-      if (bot.food < 14) {
-        const food = bot.inventory.items().find(i => {
-          const itemData = mcData.itemsByName[i.name];
-          return itemData && itemData.food;
-        });
-        if (food) {
-          bot.equip(food, 'hand')
-            .then(() => bot.consume())
-            .catch(e => console.log('[AutoEat] Error:', e.message));
-        }
-      }
+      bot.attack(target);
     } catch (e) {
-      console.log('[AutoEat] Error:', e.message);
+      console.log(`[Revenge] Attack error: ${e.message}`);
+    }
+
+    // Continue attacking
+    revengeInterval = setInterval(() => {
+      if (!bot || !botState.connected) {
+        clearInterval(revengeInterval);
+        revengeInterval = null;
+        return;
+      }
+
+      // Revenge timeout
+      if (Date.now() > revengeUntil) {
+        clearInterval(revengeInterval);
+        revengeInterval = null;
+        revengeTarget = null;
+        console.log('[Revenge] Revenge timeout');
+        return;
+      }
+
+      if (!revengeTarget || !revengeTarget.position) {
+        clearInterval(revengeInterval);
+        revengeInterval = null;
+        revengeTarget = null;
+        return;
+      }
+
+      const distance = getDistance(revengeTarget);
+
+      // Target escaped
+      if (distance > 6) {
+        clearInterval(revengeInterval);
+        revengeInterval = null;
+        revengeTarget = null;
+        console.log('[Revenge] Target escaped');
+        return;
+      }
+
+      try {
+        // Move toward target
+        if (bot.pathfinder) {
+          bot.pathfinder.setGoal(
+            new goals.GoalNear(
+              Math.floor(revengeTarget.position.x),
+              Math.floor(revengeTarget.position.y),
+              Math.floor(revengeTarget.position.z),
+              2
+            )
+          );
+        }
+
+        // Attack
+        bot.attack(revengeTarget);
+
+      } catch (e) {
+        console.log(`[Revenge] Error: ${e.message}`);
+      }
+
+    }, 500);
+  }
+
+  // ----------------------------------------------------------
+  // BOT TAKES DAMAGE
+  // ----------------------------------------------------------
+
+  bot.on('entityHurt', (entity) => {
+    if (!bot || !bot.entity || entity !== bot.entity) return;
+
+    try {
+      const target = findBestAttacker();
+
+      if (!target) {
+        console.log('[Revenge] No valid attacker found');
+        return;
+      }
+
+      // Don't revenge if bot is falling
+      if (
+        bot.entity.velocity &&
+        bot.entity.velocity.y < -0.5 &&
+        !bot.entity.onGround
+      ) {
+        console.log('[Revenge] Falling damage suspected - ignored');
+        return;
+      }
+
+      const name =
+        target.username ||
+        target.displayName ||
+        target.name ||
+        target.type;
+
+      console.log(`[Revenge] Bot hurt - attacking ${name}`);
+
+      startRevenge(target);
+
+    } catch (e) {
+      console.log(`[Revenge] Detection error: ${e.message}`);
     }
   });
+
+  // ----------------------------------------------------------
+  // CLEANUP
+  // ----------------------------------------------------------
+
+  bot.on('death', () => {
+    if (revengeInterval) {
+      clearInterval(revengeInterval);
+      revengeInterval = null;
+    }
+
+    revengeTarget = null;
+    revengeUntil = 0;
+
+    console.log('[Revenge] Cleared because bot died');
+  });
+
+  bot.on('end', () => {
+    if (revengeInterval) {
+      clearInterval(revengeInterval);
+      revengeInterval = null;
+    }
+
+    revengeTarget = null;
+    revengeUntil = 0;
+  });
+
+  console.log('[Revenge] Smart revenge system enabled');
 }
 
 // Bed module (FIXED - beds are blocks, not entities)
