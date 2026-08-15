@@ -646,8 +646,8 @@ const fallDeathMessages = [
 const genericDeathMessages = [
   "Bhai main mar gaya 😭",
   "Ye kya ho gaya 💀",
-  "Aaj bot ki kismat kharab hai 😂",
-  "RIP bot 😭",
+  "Aaj Mythpat ki kismat kharab hai 😂",
+  "RIP Mythpat 😭",
   "Respawn hone de bhai 😈",
   "Main wapas aaunga 💀"
 ];
