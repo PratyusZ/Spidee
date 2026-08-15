@@ -669,7 +669,7 @@ bot.on('entityHurt', (entity) => {
 bot.on('death', () => {
   if (!bot) return;
 
-  let killer = 'someone';
+  let killer = 'Koi';
 
   // Only trust the attacker if the damage happened recently
   if (
