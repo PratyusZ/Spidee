@@ -596,6 +596,118 @@ if (config.utils['chat-messages']?.enabled) {
     console.log(`[AutoChat] Random messages enabled: every ${delay / 1000}s`);
   }
 }
+  // ---------- DEATH + KILLER CHAT ----------
+const deathMessages = [
+  "{killer}, mujhe kyu mar rahe ho bhai 😭",
+  "{killer} noobre jaa na apna kaam kar 😂",
+  "{killer}, 1v1 karega bot sala? 😈",
+  "Arey {killer}, galat bande se panga le liya 💀",
+  "{killer}, ye kya kar diya mere saath 😭",
+  "Ruk {killer}, respawn hone de 😤",
+  "{killer}, aaj meri kismat hi kharab hai 💀",
+  "Bot ko maar ke kya milega {killer}? 😂",
+  "{killer}, ye unfair tha bhai 😭",
+  "Teri Ma ki Chut {killer}, Sale,",
+  "Maderchood {killer}, ",
+  "Magar ladle {killer}, miaau khp khp khp ",
+  "Next time {killer}, ko nahi chhodunga 😈",
+  "{killer}, lagta hai aaj Minecraft mere against hai 💀",
+  "Bhai {killer}, thoda daya kar leta 😭",
+  "{killer}, ye murder tha bhai 😂",
+  "{killer}, respawn hone de, phir batata hu 😎",
+  "Mera revenge pending hai {killer} 😈",
+  "{killer} GG... lekin badhiya nahi tha 😭",
+  "Aaj to bot ki watt {killer} ne laga di 💀",
+  "{killer}, kya fayda mujhe maar ke, main phir aa jaunga 😂",
+  "Bhai {killer}, ye personal ho gaya 😤",
+  "{killer}, next round meri hai 😈"
+];
+
+let lastAttacker = null;
+let lastDamageTime = 0;
+
+// Detect entities around the bot when it gets hurt
+bot.on('entityHurt', (entity) => {
+  if (!bot || !bot.entity || entity !== bot.entity) return;
+
+  try {
+    const now = Date.now();
+
+    // Find nearby players/mobs
+    const attackers = Object.values(bot.entities)
+      .filter(e =>
+        e !== bot.entity &&
+        e.position &&
+        (
+          e.type === 'player' ||
+          e.type === 'mob'
+        )
+      )
+      .map(e => ({
+        entity: e,
+        distance: bot.entity.position.distanceTo(e.position)
+      }))
+      .filter(e => e.distance <= 6)
+      .sort((a, b) => a.distance - b.distance);
+
+    if (attackers.length > 0) {
+      lastAttacker = attackers[0].entity;
+      lastDamageTime = now;
+
+      console.log(
+        `[Combat] Possible attacker: ${
+          lastAttacker.username || lastAttacker.name || lastAttacker.type
+        }`
+      );
+    }
+  } catch (e) {
+    console.log(`[KillerDetect] Error: ${e.message}`);
+  }
+});
+
+// Detect death
+bot.on('death', () => {
+  if (!bot) return;
+
+  let killer = 'someone';
+
+  // Only trust the attacker if the damage happened recently
+  if (
+    lastAttacker &&
+    Date.now() - lastDamageTime <= 10000
+  ) {
+    if (lastAttacker.username) {
+      killer = `@${lastAttacker.username}`;
+    } else if (lastAttacker.name) {
+      killer = lastAttacker.name;
+    } else if (lastAttacker.type === 'mob') {
+      killer = lastAttacker.displayName || lastAttacker.name || 'that mob';
+    } else {
+      killer = 'that guy';
+    }
+  }
+
+  const template =
+    deathMessages[Math.floor(Math.random() * deathMessages.length)];
+
+  const message = template.replaceAll('{killer}', killer);
+
+  // Wait a little so the server can process the death/respawn
+  setTimeout(() => {
+    try {
+      if (bot) {
+        bot.chat(message);
+        console.log(`[DeathChat] ${message}`);
+      }
+    } catch (e) {
+      console.log(`[DeathChat] Error: ${e.message}`);
+    }
+  }, 1000);
+
+  // Reset attacker after death
+  lastAttacker = null;
+  lastDamageTime = 0;
+});
 
   // ---------- CUSTOM MODULES ----------
   if (config.modules.avoidMobs) avoidMobs(bot);
