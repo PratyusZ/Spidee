@@ -598,29 +598,29 @@ if (config.utils['chat-messages']?.enabled) {
 }
   // ---------- DEATH + KILLER CHAT ----------
 const deathMessages = [
-  "{killer}, mujhe kyu mar rahe ho bhai 😭",
+  "{killer} mujhe kyu mar rahe ho bhai 😭",
   "{killer} noobre jaa na apna kaam kar 😂",
-  "{killer}, 1v1 karega bot sala? 😈",
-  "Arey {killer}, galat bande se panga le liya 💀",
-  "{killer}, ye kya kar diya mere saath 😭",
-  "Ruk {killer}, respawn hone de 😤",
-  "{killer}, aaj meri kismat hi kharab hai 💀",
+  "{killer} 1v1 karega bot sala? 😈",
+  "Arey {killer} galat bande se panga le liya 💀",
+  "{killer} ye kya kar diya mere saath 😭",
+  "Ruk {killer} respawn hone de 😤",
+  "{killer} aaj meri kismat hi kharab hai 💀",
   "Bot ko maar ke kya milega {killer}? 😂",
-  "{killer}, ye unfair tha bhai 😭",
+  "{killer} ye unfair tha bhai 😭",
   "Teri Ma ki Chut {killer}, Sale,",
-  "Maderchood {killer}, ",
-  "Magar ladle {killer}, miaau khp khp khp ",
-  "Next time {killer}, ko nahi chhodunga 😈",
-  "{killer}, lagta hai aaj Minecraft mere against hai 💀",
-  "Bhai {killer}, thoda daya kar leta 😭",
-  "{killer}, ye murder tha bhai 😂",
-  "{killer}, respawn hone de, phir batata hu 😎",
+  "Maderchood {killer} ",
+  "Magar ladle {killer} miaau khp khp khp ",
+  "Next time {killer} ko nahi chhodunga 😈",
+  "{killer} lagta hai aaj Minecraft mere against hai 💀",
+  "Bhai {killer} thoda daya kar leta 😭",
+  "{killer} ye murder tha bhai 😂",
+  "{killer} respawn hone de, phir batata hu 😎",
   "Mera revenge pending hai {killer} 😈",
   "{killer} GG... lekin badhiya nahi tha 😭",
   "Aaj to bot ki watt {killer} ne laga di 💀",
-  "{killer}, kya fayda mujhe maar ke, main phir aa jaunga 😂",
-  "Bhai {killer}, ye personal ho gaya 😤",
-  "{killer}, next round meri hai 😈"
+  "{killer} kya fayda mujhe maar ke, main phir aa jaunga 😂",
+  "Bhai {killer} ye personal ho gaya 😤",
+  "{killer} next round meri hai 😈"
 ];
 
 let lastAttacker = null;
