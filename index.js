@@ -569,6 +569,33 @@ bot.on('messagestr', (msg) => {
   if (config.movement['look-around'].enabled) {
     startLookAround(bot);
   }
+  // ---------- AUTO CHAT MESSAGES ----------
+if (config.utils['chat-messages']?.enabled) {
+  const messages = config.utils['chat-messages'].messages || [];
+  const delay = config.utils['chat-messages']['repeat-delay'] || 60000;
+
+  if (messages.length > 0) {
+    let lastMessage = -1;
+
+    addInterval(() => {
+      if (!bot || !botState.connected) return;
+
+      let index;
+      do {
+        index = Math.floor(Math.random() * messages.length);
+      } while (messages.length > 1 && index === lastMessage);
+
+      lastMessage = index;
+
+      bot.chat(messages[index]);
+      botState.lastActivity = Date.now();
+
+      console.log(`[AutoChat] Sent: ${messages[index]}`);
+    }, delay);
+
+    console.log(`[AutoChat] Random messages enabled: every ${delay / 1000}s`);
+  }
+}
 
   // ---------- CUSTOM MODULES ----------
   if (config.modules.avoidMobs) avoidMobs(bot);
