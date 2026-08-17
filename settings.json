@@ -28,7 +28,7 @@
     "chat-messages": {
       "enabled": true,
       "repeat": true,
-      "repeat-delay": 60000,
+      "repeat-delay": 500,
       "messages": [
         "I'm a Best player in the World",
         "Subscribe to Mythpat",
